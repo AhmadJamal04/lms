@@ -17,9 +17,8 @@ let sequelize = new Sequelize(
   {
     host: config.db.host,
     dialect: "mysql",
-    logging:false
-  },
-
+    logging: false,
+  }
 );
 
 sequelize
@@ -38,7 +37,10 @@ fs.readdirSync(__dirname)
     );
   })
   .forEach((file) => {
-    const model = require(path.join(__dirname, file))(sequelize, Sequelize.DataTypes);
+    const model = require(path.join(__dirname, file))(
+      sequelize,
+      Sequelize.DataTypes
+    );
     let name = upperFirst(camelCase(model.name));
     db[name] = model;
   });
@@ -48,8 +50,8 @@ Object.keys(db).forEach((modelName) => {
     db[modelName].associate(db);
   }
 });
-sequelize.sync({   
-  alter: true,
+sequelize.sync({
+  force: true,
 });
 
 db.sequelize = sequelize;

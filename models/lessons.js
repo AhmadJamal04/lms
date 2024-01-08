@@ -13,6 +13,7 @@ module.exports=(sequelize,DataTypes)=>{
         },
         content_html: {
           type: DataTypes.TEXT,
+          allowNull:false
         },
       
         module_id: {
@@ -35,6 +36,12 @@ module.exports=(sequelize,DataTypes)=>{
       Lesson.beforeUpdate(async (lesson) => {
         lesson.dataValues.updatedAt = moment().unix();
       });
+      Lesson.associate=function(models){
+        Lesson.belongsTo(models.Modules);
+        Lesson.hasMany(models.Assignments,{
+          foreignKey:"lesson_id"
+        })
+      }
 return Lesson;
 }
 

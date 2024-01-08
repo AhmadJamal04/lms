@@ -25,7 +25,7 @@ app.use(
     extended: true,
   })
 );
-app.use(
+app.use( 
   expressLogger({
     excludes: [
       "headers",

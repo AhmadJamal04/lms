@@ -72,5 +72,23 @@ module.exports = (sequelize, DataTypes) => {
   User.beforeUpdate(async (user) => {
     user.dataValues.updatedAt = moment().unix();
   });
+
+  User.associate = function (models) {
+    console.log(models);
+
+    User.hasOne(models.UserAddresses, {
+      foreignKey: "user_id",
+      onDelete: "CASCADE",
+      onUpdate: "CASCADE",
+      as: "address",
+    });
+
+    User.belongsToMany(models.Courses, {
+      through: models.Enrolements,
+      foreignKey: "user_id",
+    });
+    User.hasMany(models.Grades, { foreignKey: "user_id" });
+    User.hasMany(models.Assignments, { foreignKey: "user_id" });
+  };
   return User;
 };

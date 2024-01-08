@@ -1,7 +1,5 @@
 "use strict";
 
-const { DataTypes } = require("sequelize");
-const { sequelize } = require(".");
 
 module.exports=(sequelize,DataTypes)=>{
     const Module= sequelize.define("modules",{
@@ -34,6 +32,9 @@ module.exports=(sequelize,DataTypes)=>{
       Module.beforeUpdate(async (module) => {
         module.dataValues.updatedAt = moment().unix();
       });
-
+      Module.associate=function(models){
+        Module.belongsTo(models.Courses);
+        Module.hasMany(models.Lessons,{foreignKey:"module_id"})
+      };
     return Module
 }
