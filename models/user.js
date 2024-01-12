@@ -1,5 +1,5 @@
 "use strict";
-
+const moment=require("moment")
 module.exports = (sequelize, DataTypes) => {
   const User = sequelize.define("users", {
     id: {
@@ -39,7 +39,7 @@ module.exports = (sequelize, DataTypes) => {
     },
 
     role: {
-      type: DataTypes.ENUM("ADMIN", "USER", "VENDOR"),
+      type: DataTypes.ENUM("ADMIN", "STUDENT", "INSTRUCTOR"),
     },
     status: {
       type: DataTypes.ENUM("PENDING", "APPROVED", "REJECTED"),
