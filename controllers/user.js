@@ -1,13 +1,22 @@
 const config = require("../config");
+const putSignedUrl = require("../middlewares/putObject");
 const { Users } = require("../models");
 const { generateErrorInstance } = require("../utils");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-
-module.exports = {
+const {putObjectUrl, uploadFile,} = require("../utils/putObjectUrl");
+const{Readable}=require("stream")
+module.exports = { 
   signup: async (req, res) => {
     try {
       const uploadedFile = req.file;
+  const url= await putObjectUrl(req.file.originalname,req.file.mimetype)
+ 
+  const fileStream= req.file.buffer;
+  console.log(fileStream)
+ 
+  const upload= await uploadFile(req.file.originalname,fileStream,req.file.mimetype)
+ 
       const { name, email, password, instructor } = req.body;
       if (!name || !email || !password || !uploadedFile) {
         throw generateErrorInstance({
@@ -29,7 +38,7 @@ module.exports = {
         name,
         email,
         password: hashedPassword,
-        profileImage: uploadedFile.path,
+        profileImage: req.file.originalname,
         role: instructor ? "INSTRUCTOR" : "STUDENT",
       });
       await res.status(200).send(user);
