@@ -1,13 +1,16 @@
 const { jwtSecret } = require("../config");
 const { Users } = require("../models");
 const jwt = require("jsonwebtoken");
+const { generateErrorInstance } = require("../utils");
 
-const chcekUser = async function (req, res, next) {
+const checkUser = async function (req, res, next) {
   try {
-    const { userId } = req.params;
+    const { userId ,courseId} = req.params;
+   
     const user = await Users.findOne({
       where: { id: userId },
     });
+ 
     if (!user) {
       throw generateErrorInstance({ status: 404, message: "User not found!" });
     }
@@ -19,7 +22,8 @@ const chcekUser = async function (req, res, next) {
     if (!decoded) {
       throw generateErrorInstance({ status: 401, message: "invalid token!" });
     }
-    if (decoded.id !== userId) {
+   
+    if (decoded.id != userId) {
       throw generateErrorInstance({
         status: 401,
         message: "unauthorized user!",
@@ -27,6 +31,9 @@ const chcekUser = async function (req, res, next) {
     }
     req.user = user;
     next();
-  } catch (error) {}
+  } catch (error) {
+    console.log(error)
+    next(error)
+  }
 };
-module.exports = chcekUser;
+module.exports = checkUser;
