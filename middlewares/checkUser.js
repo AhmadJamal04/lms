@@ -5,12 +5,12 @@ const { generateErrorInstance } = require("../utils");
 
 const checkUser = async function (req, res, next) {
   try {
-    const { userId ,courseId} = req.params;
-   
+    const { id} = req.params;
+
     const user = await Users.findOne({
-      where: { id: userId },
+      where: { id: id },
     });
- 
+
     if (!user) {
       throw generateErrorInstance({ status: 404, message: "User not found!" });
     }
@@ -18,12 +18,13 @@ const checkUser = async function (req, res, next) {
     if (!token) {
       throw generateErrorInstance({ status: 401, message: "token is empty!" });
     }
-    const decoded = jwt.verify(token, jwtSecret);
+    const OnlyToken = token.split(" ")[1];
+    const decoded = jwt.verify(OnlyToken, jwtSecret);
     if (!decoded) {
       throw generateErrorInstance({ status: 401, message: "invalid token!" });
     }
-   
-    if (decoded.id != userId) {
+
+    if (decoded.id != id) {
       throw generateErrorInstance({
         status: 401,
         message: "unauthorized user!",
@@ -32,8 +33,8 @@ const checkUser = async function (req, res, next) {
     req.user = user;
     next();
   } catch (error) {
-    console.log(error)
-    next(error)
+    console.log(error);
+    next(error);
   }
 };
 module.exports = checkUser;
