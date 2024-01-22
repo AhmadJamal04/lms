@@ -4,21 +4,14 @@ const { Users } = require("../models");
 const { generateErrorInstance } = require("../utils");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-const {putObjectUrl, uploadFile,} = require("../utils/putObjectUrl");
-const{Readable}=require("stream")
-module.exports = { 
+const { putObjectUrl, uploadFile } = require("../utils/putObjectUrl");
+const { Readable } = require("stream");
+const { Console } = require("console");
+module.exports = {
   signup: async (req, res) => {
     try {
-      const uploadedFile = req.file;
-  const url= await putObjectUrl(req.file.originalname,req.file.mimetype)
- 
-  const fileStream= req.file.buffer;
-  console.log(fileStream)
- 
-  const upload= await uploadFile(req.file.originalname,fileStream,req.file.mimetype)
- 
       const { name, email, password, instructor } = req.body;
-      if (!name || !email || !password || !uploadedFile) {
+      if (!name || !email || !password) {
         throw generateErrorInstance({
           status: 400,
           message: "Required fields can't be empty",
@@ -34,11 +27,22 @@ module.exports = {
         });
       }
       const hashedPassword = await bcrypt.hash(password, 10);
+      const uploadedFile = req.file;
+
+      if (uploadedFile) {
+        const fileStream = uploadedFile.buffer;
+        const upload = await uploadFile(
+          uploadedFile.originalname,
+          fileStream,
+          uploadedFile.mimetype
+        );
+      }
       const user = await Users.create({
         name,
         email,
+        status: instructor ? "PENDING" : "APPROVED",
         password: hashedPassword,
-        profileImage: req.file.originalname,
+        profileImage: uploadedFile ? req.file.originalname : "",
         role: instructor ? "INSTRUCTOR" : "STUDENT",
       });
       await res.status(200).send(user);
@@ -96,24 +100,57 @@ module.exports = {
         expiresIn: "1d",
       });
 
-      return res.status(200).send({ user, token });
+      return res.status(200).json({
+        success: true,
+        data: { user, token },
+      });
     } catch (err) {
       console.log(err);
-      return res
-        .status(err.status || 500)
-        .send(err.message || "Something went wrong!");
+      next(err);
     }
   },
   getUsers: async (req, res) => {
     try {
-      const users = await Users.findAll({
-        where: {
-          role: ["INSTRUCTOR", "STUDENT"],
-        },
-      });
+      const users = await Users.findAll();
       res.status(200).send(users);
     } catch (err) {
       console.log(err);
     }
+  },
+  logout: async (req, res, next) => {
+    try {
+      const token = req.header("Authorization");
+
+      if (!token) {
+        throw generateErrorInstance({
+          status: 200,
+          message: "user already logout",
+        });
+      }
+      res.removeHeader("Authorization");
+
+      res.status(200).json({
+        success: true,
+        message: "Logged out",
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+  updateStatus: async (req, res, next) => {
+    try {
+      const { userId } = req.params;
+      let user = await Users.findOne({
+        where: { id: userId },
+      });
+      console.log(user.status);
+      user = await user.update({
+        status: "APPROVED",
+      });
+      res.status(200).json({
+        success: true,
+        data: user,
+      });
+    } catch (error) {}
   },
 };
