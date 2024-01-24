@@ -1,4 +1,8 @@
 const config = require("../config");
+const crypto = require("crypto");
+const dotenv = require("dotenv-safe");
+dotenv.config({ path: ".env" });
+const sendEmail = require("../utils/sendEmail");
 const putSignedUrl = require("../middlewares/putObject");
 const { Users } = require("../models");
 const { generateErrorInstance } = require("../utils");
@@ -153,23 +157,91 @@ module.exports = {
       });
     } catch (error) {}
   },
-  preSignedUrl:async(req,res,next)=>{
+  preSignedUrl: async (req, res, next) => {
     try {
-      const {fileName,fileType} = req.body;
-      const url= await putObjectUrl(fileName,fileType);
-      if(!url){
+      const { fileName, fileType } = req.body;
+      const url = await putObjectUrl(fileName, fileType);
+      if (!url) {
         throw generateErrorInstance({
-          status:404,
-          message:"unable to generate presigned url"
-        })
+          status: 404,
+          message: "unable to generate presigned url",
+        });
       }
       res.status(200).json({
-        success:true,
-        data:url
-      })
-
+        success: true,
+        data: url,
+      });
     } catch (error) {
-      next(error)
+      next(error);
     }
-  }
+  },
+  forgetPassword: async (req, res, next) => {
+    const email = req.body.email;
+    const user = await Users.findOne({
+      where: {
+        email,
+      },
+    });
+    try {
+      if (!email) {
+        throw generateErrorInstance({
+          status: 400,
+          message: "Please enter email",
+        });
+      }
+
+      if (!user) {
+        throw generateErrorInstance({
+          status: 404,
+          message: "User not found",
+        });
+      }
+
+      const resetToken = crypto.randomBytes(20).toString("hex");
+
+      const updatedUser = await Users.update(
+        {
+          resetPasswordToken: crypto
+            .createHash("sha256")
+            .update(resetToken)
+            .digest("hex"),
+          resetPasswordTokenExpiry: Date.now() + 15 * 60 * 1000,
+        },
+        {
+          where: {
+            id: user.id,
+          },
+        }
+      );
+
+      //Configure nodemailer to send email to the user
+      const resetUrl = `${process.env.FRONTEND_BASE_URL}/resetPassword/${resetToken}`;
+
+      const message = `Your password reset token is : ${resetToken} \n\nclick on the link below to reset your password \n\n${resetUrl}`;
+
+      await sendEmail({
+        email: user.email,
+        subject: "LMS Password Recovery",
+        message,
+      });
+
+      res.status(200).json({
+        success: true,
+        message: `Email sent to ${user.email} successfully`,
+      });
+    } catch (error) {
+      await Users.update(
+        {
+          resetPasswordToken: undefined,
+          resetPasswordTokenExpiry: undefined,
+        },
+        {
+          where: {
+            id: user.id,
+          },
+        }
+      );
+      return next(error);
+    }
+  },
 };
