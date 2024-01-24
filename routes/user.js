@@ -19,9 +19,10 @@ router.post(
   controller.signup
 );
 router.post("/login", controller.login);
+router.post("/getPresignedUrl",controller.preSignedUrl)
 router.get("/", controller.getUsers);
 // router.post("/forget-Password",constroller.forgetPassword);
-// router.post("/rest-pasword/:token",constroller.forgetPassword)
+// router.post("/rest-pasword/:token",constroller.resetPassword)
 router.get("/logout", controller.logout);
 router.patch(
   "/:id/updateStatus/:userId",
