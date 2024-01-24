@@ -153,4 +153,23 @@ module.exports = {
       });
     } catch (error) {}
   },
+  preSignedUrl:async(req,res,next)=>{
+    try {
+      const {fileName,fileType} = req.body;
+      const url= await putObjectUrl(fileName,fileType);
+      if(!url){
+        throw generateErrorInstance({
+          status:404,
+          message:"unable to generate presigned url"
+        })
+      }
+      res.status(200).json({
+        success:true,
+        data:url
+      })
+
+    } catch (error) {
+      next(error)
+    }
+  }
 };
