@@ -22,8 +22,8 @@ module.exports = {
   },
   deleteCourse:async(req,res,next)=>{
     try {
-        const{courseId}=req.params;
-    const course= await Courses.findByPk(courseId)
+        const{course_id}=req.params;
+    const course= await Courses.findByPk(course_id)
     if(!course){
         throw generateErrorInstance({
             status:404,
