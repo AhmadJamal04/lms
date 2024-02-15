@@ -9,11 +9,13 @@ require("dotenv-safe").config({
 module.exports = {
   env: process.env.NODE_ENV,
   port: process.env.PORT,
+  roles: { admin: "ADMIN", instructor: "INSTRUCTOR" },
   db: {
     name: process.env.DB_NAME,
     host: process.env.DB_HOST,
     username: process.env.DB_USERNAME,
     password: process.env.DB_PASSWORD,
+   
   },
   jwtSecret: process.env.JWT_SECRET,
 };
