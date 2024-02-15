@@ -10,6 +10,7 @@ module.exports =
           message: `Role ${req.user.role} is not allowed to access this resource or Perform this action `,
         });
       }
+
       next();
     } catch (error) {
       console.log(error);
