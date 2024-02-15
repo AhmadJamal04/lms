@@ -121,6 +121,7 @@ module.exports = {
       console.log(err);
     }
   },
+  // need to kickout
   logout: async (req, res, next) => {
     try {
       const token = req.header("Authorization");
