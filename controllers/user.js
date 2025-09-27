@@ -48,6 +48,8 @@ module.exports = {
         password: hashedPassword,
         profileImage: uploadedFile ? req.file.originalname : "",
         role: instructor ? "INSTRUCTOR" : "STUDENT",
+        createdAt: Math.floor(Date.now() / 1000),
+        updatedAt: Math.floor(Date.now() / 1000),
       });
       await res.status(200).send(user);
     } catch (err) {
@@ -177,19 +179,21 @@ module.exports = {
     }
   },
   forgetPassword: async (req, res, next) => {
-    const email = req.body.email;
-    const user = await Users.findOne({
-      where: {
-        email,
-      },
-    });
     try {
+      const email = req.body.email;
+      
       if (!email) {
         throw generateErrorInstance({
           status: 400,
           message: "Please enter email",
         });
       }
+
+      const user = await Users.findOne({
+        where: {
+          email,
+        },
+      });
 
       if (!user) {
         throw generateErrorInstance({
@@ -231,10 +235,84 @@ module.exports = {
         message: `Email sent to ${user.email} successfully`,
       });
     } catch (error) {
+      // Only try to clear reset token if we have a valid user
+      if (req.body.email) {
+        try {
+          const user = await Users.findOne({
+            where: { email: req.body.email },
+          });
+          
+          if (user) {
+            await Users.update(
+              {
+                resetPasswordToken: null,
+                resetPasswordTokenExpiry: null,
+              },
+              {
+                where: {
+                  id: user.id,
+                },
+              }
+            );
+          }
+        } catch (cleanupError) {
+          console.error("Error cleaning up reset token:", cleanupError);
+        }
+      }
+      return next(error);
+    }
+  },
+  resetPassword: async (req, res, next) => {
+    try {
+      const { token } = req.params;
+      const { password } = req.body;
+
+      if (!password) {
+        throw generateErrorInstance({
+          status: 400,
+          message: "Password is required",
+        });
+      }
+
+      if (password.length < 8) {
+        throw generateErrorInstance({
+          status: 400,
+          message: "Password must be at least 8 characters long",
+        });
+      }
+
+      // Hash the token to compare with stored token
+      const hashedToken = crypto
+        .createHash("sha256")
+        .update(token)
+        .digest("hex");
+
+      // Find user with valid reset token
+      const user = await Users.findOne({
+        where: {
+          resetPasswordToken: hashedToken,
+          resetPasswordTokenExpiry: {
+            [require("sequelize").Op.gt]: Date.now(),
+          },
+        },
+      });
+
+      if (!user) {
+        throw generateErrorInstance({
+          status: 400,
+          message: "Invalid or expired reset token",
+        });
+      }
+
+      // Hash the new password
+      const hashedPassword = await bcrypt.hash(password, 10);
+
+      // Update user password and clear reset token
       await Users.update(
         {
-          resetPasswordToken: undefined,
-          resetPasswordTokenExpiry: undefined,
+          password: hashedPassword,
+          resetPasswordToken: null,
+          resetPasswordTokenExpiry: null,
         },
         {
           where: {
@@ -242,7 +320,13 @@ module.exports = {
           },
         }
       );
-      return next(error);
+
+      res.status(200).json({
+        success: true,
+        message: "Password reset successfully",
+      });
+    } catch (error) {
+      next(error);
     }
   },
 };

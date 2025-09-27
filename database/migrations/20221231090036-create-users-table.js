@@ -34,6 +34,14 @@ module.exports = {
         type: Sequelize.STRING,
         allowNull: false,
       },
+      resetPasswordToken: {
+        type: Sequelize.STRING,
+        allowNull: true,
+      },
+      resetPasswordTokenExpiry: {
+        type: Sequelize.DATE,
+        allowNull: true,
+      },
       status: {
         type: Sequelize.ENUM("Pending", "Approved", "Rejected"),
         allowNull: false,

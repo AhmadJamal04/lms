@@ -48,11 +48,11 @@ module.exports = (sequelize, DataTypes) => {
     gender: {
       type: DataTypes.ENUM("MALE", "FEMALE"),
     },
-    passwordResetToken: {
+    resetPasswordToken: {
       type: DataTypes.STRING,
     },
 
-    passwordResetTokenExpiry: {
+    resetPasswordTokenExpiry: {
       type: DataTypes.DATE,
     },
     createdAt: {
@@ -63,12 +63,16 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: false,
       type: DataTypes.INTEGER,
     },
+  }, {
+    timestamps: false, // Disable automatic timestamp management
   });
 
   User.beforeCreate(async (user) => {
-    user.dataValues.createdAt = moment().unix();
-    user.dataValues.updatedAt = moment().unix();
+    const now = moment().unix();
+    user.dataValues.createdAt = now;
+    user.dataValues.updatedAt = now;
   });
+  
   User.beforeUpdate(async (user) => {
     user.dataValues.updatedAt = moment().unix();
   });
