@@ -1,7 +1,7 @@
 const { Router } = require("express");
 const controller = require("../controllers/enrollment");
 const { authenticateToken } = require("../middlewares/jwtAuth");
-const { roleMiddleware } = require("../middlewares/authorizeRoles");
+const roleMiddleware = require("../middlewares/authorizeRoles");
 const { validateInput, validationSchemas } = require("../middlewares/security");
 const { generalRateLimit } = require("../middlewares/security");
 
