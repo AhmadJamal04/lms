@@ -87,9 +87,24 @@ module.exports = (sequelize, DataTypes) => {
       as: "address",
     });
 
+    // User has many courses as instructor
+    User.hasMany(models.Courses, {
+      foreignKey: "fk_instructor_id",
+      as: "courses"
+    });
+
+    // User has many courses as student through enrollments
     User.belongsToMany(models.Courses, {
       through: models.Enrolements,
       foreignKey: "user_id",
+      otherKey: "course_id",
+      as: "enrolledCourses"
+    });
+
+    // User has many enrollments
+    User.hasMany(models.Enrolements, {
+      foreignKey: "user_id",
+      as: "enrollments"
     });
     User.hasMany(models.Grades, { foreignKey: "user_id" });
     User.hasMany(models.Assignments, { foreignKey: "user_id" });

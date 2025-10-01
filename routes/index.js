@@ -4,7 +4,7 @@ const router = Router();
 // Routers
 const userRouter = require("./user");
 const courseRouter = require("./course");
-const enrolementRouter = require("./enrolement");
+const enrolementRouter = require("./enrollment");
 const moduleRouter = require("./module");
 
 router.use("/users", userRouter);

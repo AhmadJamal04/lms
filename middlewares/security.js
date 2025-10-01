@@ -63,13 +63,101 @@ const validationSchemas = {
   course: Joi.object({
     title: Joi.string().min(3).max(100).required(),
     course_intro: Joi.string().min(10).max(200).required(),
-    description: Joi.string().min(20).max(1000).required()
+    description: Joi.string().min(20).max(1000).required(),
+    category: Joi.string().max(50).optional(),
+    level: Joi.string().valid('BEGINNER', 'INTERMEDIATE', 'ADVANCED').optional(),
+    price: Joi.number().min(0).optional(),
+    tags: Joi.array().items(Joi.string().max(20)).max(10).optional(),
+    prerequisites: Joi.array().items(Joi.string().max(100)).max(5).optional(),
+    duration: Joi.number().min(1).max(1000).optional(), // in hours
+    language: Joi.string().max(10).optional()
+  }),
+
+  courseUpdate: Joi.object({
+    title: Joi.string().min(3).max(100).optional(),
+    course_intro: Joi.string().min(10).max(200).optional(),
+    description: Joi.string().min(20).max(1000).optional(),
+    category: Joi.string().max(50).optional(),
+    level: Joi.string().valid('BEGINNER', 'INTERMEDIATE', 'ADVANCED').optional(),
+    price: Joi.number().min(0).optional(),
+    tags: Joi.array().items(Joi.string().max(20)).max(10).optional(),
+    prerequisites: Joi.array().items(Joi.string().max(100)).max(5).optional(),
+    duration: Joi.number().min(1).max(1000).optional(),
+    language: Joi.string().max(10).optional(),
+    status: Joi.string().valid('DRAFT', 'PUBLISHED', 'ARCHIVED').optional()
+  }),
+
+  courseStatusUpdate: Joi.object({
+    status: Joi.string().valid('DRAFT', 'PUBLISHED', 'ARCHIVED', 'REJECTED').required(),
+    reason: Joi.string().max(200).optional()
+  }),
+
+  module: Joi.object({
+    title: Joi.string().min(3).max(100).required(),
+    description: Joi.string().min(10).max(500).required(),
+    order: Joi.number().min(1).optional(),
+    isPublished: Joi.boolean().optional()
+  }),
+
+  moduleUpdate: Joi.object({
+    title: Joi.string().min(3).max(100).optional(),
+    description: Joi.string().min(10).max(500).optional(),
+    order: Joi.number().min(1).optional(),
+    isPublished: Joi.boolean().optional()
   }),
 
   assignment: Joi.object({
     title: Joi.string().min(3).max(100).required(),
     description: Joi.string().min(10).max(1000).required(),
-    deadline: Joi.date().greater('now').required()
+    deadline: Joi.date().greater('now').required(),
+    maxScore: Joi.number().min(1).max(1000).optional(),
+    instructions: Joi.string().max(2000).optional(),
+    attachments: Joi.array().items(Joi.string()).max(5).optional()
+  }),
+
+  assignmentUpdate: Joi.object({
+    title: Joi.string().min(3).max(100).optional(),
+    description: Joi.string().min(10).max(1000).optional(),
+    deadline: Joi.date().greater('now').optional(),
+    maxScore: Joi.number().min(1).max(1000).optional(),
+    instructions: Joi.string().max(2000).optional(),
+    status: Joi.string().valid('pending', 'active', 'completed', 'graded').optional()
+  }),
+
+  announcement: Joi.object({
+    title: Joi.string().min(3).max(100).required(),
+    content: Joi.string().min(10).max(2000).required(),
+    priority: Joi.string().valid('LOW', 'MEDIUM', 'HIGH').optional(),
+    isPinned: Joi.boolean().optional()
+  }),
+
+  announcementUpdate: Joi.object({
+    title: Joi.string().min(3).max(100).optional(),
+    content: Joi.string().min(10).max(2000).optional(),
+    priority: Joi.string().valid('LOW', 'MEDIUM', 'HIGH').optional(),
+    isPinned: Joi.boolean().optional()
+  }),
+
+  category: Joi.object({
+    name: Joi.string().min(2).max(50).required(),
+    description: Joi.string().max(200).optional(),
+    color: Joi.string().pattern(/^#[0-9A-F]{6}$/i).optional()
+  }),
+
+  categoryUpdate: Joi.object({
+    name: Joi.string().min(2).max(50).optional(),
+    description: Joi.string().max(200).optional(),
+    color: Joi.string().pattern(/^#[0-9A-F]{6}$/i).optional()
+  }),
+
+  progressUpdate: Joi.object({
+    completedModules: Joi.number().min(0).optional(),
+    lastAccessed: Joi.date().optional()
+  }),
+
+  enrollmentStatusUpdate: Joi.object({
+    status: Joi.string().valid('ACTIVE', 'COMPLETED', 'WITHDRAWN', 'SUSPENDED').required(),
+    reason: Joi.string().max(200).optional()
   }),
 
   passwordReset: Joi.object({

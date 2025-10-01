@@ -24,7 +24,60 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.INTEGER,
       allowNull: false,
     },
-
+    thumbnail: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    price: {
+      type: DataTypes.DECIMAL(10, 2),
+      allowNull: true,
+      defaultValue: 0.00,
+    },
+    level: {
+      type: DataTypes.ENUM('BEGINNER', 'INTERMEDIATE', 'ADVANCED'),
+      allowNull: true,
+    },
+    category: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    tags: {
+      type: DataTypes.JSON,
+      allowNull: true,
+    },
+    prerequisites: {
+      type: DataTypes.JSON,
+      allowNull: true,
+    },
+    duration: {
+      type: DataTypes.INTEGER, // in hours
+      allowNull: true,
+    },
+    language: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      defaultValue: 'English',
+    },
+    status: {
+      type: DataTypes.ENUM('DRAFT', 'PUBLISHED', 'ARCHIVED', 'REJECTED'),
+      allowNull: false,
+      defaultValue: 'DRAFT',
+    },
+    isActive: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: true,
+    },
+    rating: {
+      type: DataTypes.DECIMAL(3, 2),
+      allowNull: true,
+      defaultValue: 0.00,
+    },
+    enrollmentCount: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0,
+    },
     createdAt: {
       allowNull: false,
       type: DataTypes.INTEGER,
@@ -43,15 +96,38 @@ module.exports = (sequelize, DataTypes) => {
   });
 
   Course.associate = function (models) {
+    // Course belongs to instructor
+    Course.belongsTo(models.Users, {
+      foreignKey: "fk_instructor_id",
+      as: "instructor"
+    });
+
+    // Course has many students through enrollments
     Course.belongsToMany(models.Users, {
       through: models.Enrolements,
       foreignKey: "course_id",
+      otherKey: "user_id",
+      as: "students"
     });
+
+    // Course has many enrollments
+    Course.hasMany(models.Enrolements, {
+      foreignKey: "course_id",
+      as: "enrollments"
+    });
+
+    // Course has many modules
     Course.hasMany(models.Modules, {
       foreignKey: "course_id",
       onDelete: "CASCADE",
+      as: "modules"
     });
-    Course.hasMany(models.Assignments, { foreignKey: "course_id" });
+
+    // Course has many assignments
+    Course.hasMany(models.Assignments, { 
+      foreignKey: "course_id",
+      as: "assignments"
+    });
   };
 
   return Course;
