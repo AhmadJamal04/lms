@@ -95,10 +95,15 @@ const authenticateToken = async (req, res, next) => {
     req.user = decoded;
     next();
   } catch (error) {
+    // Check if token is expired vs invalid
+    const isExpired = error.message.includes('expired') || error.message.includes('jwt expired');
+    
     return res.status(401).json({
       success: false,
       error: 'Authentication failed',
-      message: error.message
+      message: isExpired ? 'Token expired. Please refresh your token.' : error.message,
+      code: isExpired ? 'TOKEN_EXPIRED' : 'INVALID_TOKEN',
+      shouldRefresh: isExpired
     });
   }
 };
