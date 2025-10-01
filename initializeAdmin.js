@@ -14,7 +14,8 @@ async function initializeAdmin() {
       role: "ADMIN",
       status: "APPROVED",
       gender: "MALE",
-    
+      createdAt: Math.floor(Date.now() / 1000),
+      updatedAt: Math.floor(Date.now() / 1000),
     };
 
     // Hash the password before storing it

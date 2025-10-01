@@ -3,6 +3,20 @@ const expressLogger = require("express-bunyan-logger");
 const cors = require("cors");
 const router = require("./routes");
 
+// Import security and performance middlewares
+const {
+  authRateLimit,
+  generalRateLimit,
+  strictRateLimit,
+  validateInput,
+  sanitizeInput,
+  securityHeaders,
+  corsOptions,
+  validationSchemas
+} = require("./middlewares/security");
+
+
+
 require("./models");
 
 process.on("uncaughtException", (e) => {
@@ -11,11 +25,22 @@ process.on("uncaughtException", (e) => {
 
 const app = express();
 
+// Security headers
+app.use(securityHeaders);
+
+// CORS configuration
+app.use(cors(corsOptions));
+
+// Rate limiting
+app.use('/api/users', strictRateLimit);
+app.use('/api', generalRateLimit);
+
+// Body parsing with limits
 app.use(
   express.json({
-    inflate: true, // Enables handling deflated (compressed) bodies; when disabled, deflated bodies are rejected.
-    limit: "10mb", // Controls the maximum request body size. Default unit is number of bytes,
-    strict: true, //	Enables only accepting arrays and objects
+    inflate: true,
+    limit: "10mb",
+    strict: true,
   })
 );
 app.use(
@@ -25,6 +50,11 @@ app.use(
     extended: true,
   })
 );
+
+// Input sanitization
+app.use(sanitizeInput);
+
+// Logging
 app.use( 
   expressLogger({
     excludes: [
@@ -37,10 +67,9 @@ app.use(
       "res-headers",
       "body",
       "res",
-    ], // remove extra details from log
+    ],
   })
 );
-app.use(cors());
 
 // routes
 app.use("/api", router);

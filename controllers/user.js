@@ -7,7 +7,7 @@ const putSignedUrl = require("../middlewares/putObject");
 const { Users } = require("../models");
 const { generateErrorInstance } = require("../utils");
 const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
+const { jwtAuth } = require("../middlewares/jwtAuth");
 const { putObjectUrl, uploadFile } = require("../utils/putObjectUrl");
 const { Readable } = require("stream");
 const { Console } = require("console");
@@ -51,9 +51,16 @@ module.exports = {
         createdAt: Math.floor(Date.now() / 1000),
         updatedAt: Math.floor(Date.now() / 1000),
       });
-      await res.status(200).send(user);
+      res.status(200).json({
+        success: true,
+        data: user
+      });
     } catch (err) {
       console.log(err);
+      res.status(500).json({
+        success: false,
+        error: err.message || 'Internal server error'
+      });
     }
   },
   login: async (req, res,next) => {
@@ -67,28 +74,47 @@ module.exports = {
         });
       }
 
+      // Find user with email, prioritizing APPROVED status
       let user = await Users.findOne({
-        where: { email },
+        where: { 
+          email,
+          status: "APPROVED"
+        },
       });
 
+      // If no APPROVED user found, check if there are any users with this email
       if (!user) {
+        const anyUser = await Users.findOne({
+          where: { email },
+        });
+        
+        if (!anyUser) {
+          throw generateErrorInstance({
+            status: 404,
+            message: "User not found",
+          });
+        }
+        
+        // If user exists but not approved, show appropriate message
+        if (anyUser.status === "PENDING") {
+          throw generateErrorInstance({
+            status: 400,
+            message: `${anyUser.name} - Your account is pending approval. Please contact admin.`,
+          });
+        }
+        
         throw generateErrorInstance({
-          status: 404,
-          message: "User not found",
+          status: 400,
+          message: `${anyUser.name} - Your account status is ${anyUser.status}. Please contact admin.`,
         });
       }
-      console.log(user.isactive);
+
+      console.log("Found user:", user.name, "Role:", user.role, "Status:", user.status);
+      
       if (!user.isActive) {
         throw generateErrorInstance({
           status: 400,
           message: "User is not active Contact Admin",
-        });
-      }
-
-      if (user.status !== "APPROVED") {
-        throw generateErrorInstance({
-          status: 400,
-          message: `${user.name} Contact Admin to Approve your Account`,
         });
       }
       const passwordMatched = await bcrypt.compare(password, user.password);
@@ -102,13 +128,16 @@ module.exports = {
       user = user.toJSON();
       delete user.password;
 
-      const token = jwt.sign(user, config.jwtSecret, {
-        expiresIn: "1d",
-      });
+      // Generate token pair (access + refresh)
+      const tokenPair = jwtAuth.generateTokenPair(user);
 
       return res.status(200).json({
         success: true,
-        data: { user, token },
+        data: { 
+          user, 
+          accessToken: tokenPair.accessToken,
+          refreshToken: tokenPair.refreshToken
+        },
       });
     } catch (err) {
       console.log(err);
@@ -118,9 +147,16 @@ module.exports = {
   getUsers: async (req, res) => {
     try {
       const users = await Users.findAll();
-      res.status(200).send(users);
+      res.status(200).json({
+        success: true,
+        data: users
+      });
     } catch (err) {
       console.log(err);
+      res.status(500).json({
+        success: false,
+        error: err.message || 'Internal server error'
+      });
     }
   },
   // need to kickout
@@ -158,7 +194,13 @@ module.exports = {
         success: true,
         data: user,
       });
-    } catch (error) {}
+    } catch (error) {
+      console.log(error);
+      res.status(500).json({
+        success: false,
+        error: error.message || 'Internal server error'
+      });
+    }
   },
   preSignedUrl: async (req, res, next) => {
     try {
@@ -327,6 +369,64 @@ module.exports = {
       });
     } catch (error) {
       next(error);
+    }
+  },
+  adminSignup: async (req, res) => {
+    try {
+      const { name, email, password } = req.body;
+      
+      if (!name || !email || !password) {
+        throw generateErrorInstance({
+          status: 400,
+          message: "Required fields can't be empty",
+        });
+      }
+      
+      const existingUser = await Users.findOne({
+        where: { email },
+      });
+      
+      if (existingUser) {
+        throw generateErrorInstance({
+          status: 409,
+          message: "Email already exists!",
+        });
+      }
+      
+      const hashedPassword = await bcrypt.hash(password, 10);
+      const uploadedFile = req.file;
+
+      if (uploadedFile) {
+        const fileStream = uploadedFile.buffer;
+        const upload = await uploadFile(
+          uploadedFile.originalname,
+          fileStream,
+          uploadedFile.mimetype
+        );
+      }
+      
+      const user = await Users.create({
+        name,
+        email,
+        status: "APPROVED", // Admin is auto-approved
+        password: hashedPassword,
+        profileImage: uploadedFile ? req.file.originalname : "",
+        role: "ADMIN", // Force admin role
+        createdAt: Math.floor(Date.now() / 1000),
+        updatedAt: Math.floor(Date.now() / 1000),
+      });
+      
+      res.status(200).json({
+        success: true,
+        data: user,
+        message: "Admin user created successfully"
+      });
+    } catch (err) {
+      console.log(err);
+      res.status(500).json({
+        success: false,
+        error: err.message || 'Internal server error'
+      });
     }
   },
 };
