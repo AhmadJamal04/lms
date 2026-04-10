@@ -1,5 +1,5 @@
 const { Modules, Courses } = require("../models");
-const { generateErrorInstance } = require("../utils");
+const moduleService = require("../services/moduleService");
 
 module.exports = {
   newModule: async (req, res, next) => {
@@ -8,12 +8,7 @@ module.exports = {
       const { title } = req.body;
       const course = await Courses.findByPk(course_id);
 
-      if (!course) {
-        throw generateErrorInstance({
-          status: 404,
-          message: "course not found",
-        });
-      }
+      moduleService.ensureCourseExists(course);
       const module = await Modules.create({
         title,
         course_id,
@@ -33,12 +28,7 @@ module.exports = {
         where: { id: module_id },
       });
       console.log(module);
-      if (!module) {
-        throw generateErrorInstance({
-          status: 404,
-          message: "module not found",
-        });
-      }
+      moduleService.ensureModuleExists(module);
       await Modules.destroy({
         where: { id: module.dataValues.id },
       });
