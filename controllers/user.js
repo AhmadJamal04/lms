@@ -11,16 +11,12 @@ const { jwtAuth } = require("../middlewares/jwtAuth");
 const { putObjectUrl, uploadFile } = require("../utils/putObjectUrl");
 const { Readable } = require("stream");
 const { Console } = require("console");
+const userService = require("../services/userService");
 module.exports = {
   signup: async (req, res) => {
     try {
       const { name, email, password, instructor } = req.body;
-      if (!name || !email || !password) {
-        throw generateErrorInstance({
-          status: 400,
-          message: "Required fields can't be empty",
-        });
-      }
+      userService.ensureRequiredSignupFields({ name, email, password });
       const existingUser = await Users.findOne({
         where: { email },
       });
@@ -66,13 +62,7 @@ module.exports = {
   login: async (req, res,next) => {
     try {
       const { email, password } = req.body;
-
-      if (!email || !password) {
-        throw generateErrorInstance({
-          status: 400,
-          message: "Required fields can't be empty",
-        });
-      }
+      userService.ensureRequiredLoginFields({ email, password });
 
       // Find user with email, prioritizing APPROVED status
       let user = await Users.findOne({
@@ -125,8 +115,7 @@ module.exports = {
         });
       }
 
-      user = user.toJSON();
-      delete user.password;
+      user = userService.sanitizeUserForAuthResponse(user);
 
       // Generate token pair (access + refresh)
       const tokenPair = jwtAuth.generateTokenPair(user);
@@ -244,15 +233,12 @@ module.exports = {
         });
       }
 
-      const resetToken = crypto.randomBytes(20).toString("hex");
+      const tokenPayload = userService.buildResetPasswordTokenPayload();
 
       const updatedUser = await Users.update(
         {
-          resetPasswordToken: crypto
-            .createHash("sha256")
-            .update(resetToken)
-            .digest("hex"),
-          resetPasswordTokenExpiry: Date.now() + 15 * 60 * 1000,
+          resetPasswordToken: tokenPayload.hashedToken,
+          resetPasswordTokenExpiry: tokenPayload.resetPasswordTokenExpiry,
         },
         {
           where: {
@@ -262,9 +248,9 @@ module.exports = {
       );
 
       //Configure nodemailer to send email to the user
-      const resetUrl = `${process.env.FRONTEND_BASE_URL}/resetPassword/${resetToken}`;
+      const resetUrl = `${process.env.FRONTEND_BASE_URL}/resetPassword/${tokenPayload.resetToken}`;
 
-      const message = `Your password reset token is : ${resetToken} \n\nclick on the link below to reset your password \n\n${resetUrl}`;
+      const message = `Your password reset token is : ${tokenPayload.resetToken} \n\nclick on the link below to reset your password \n\n${resetUrl}`;
 
       await sendEmail({
         email: user.email,
@@ -374,13 +360,7 @@ module.exports = {
   adminSignup: async (req, res) => {
     try {
       const { name, email, password } = req.body;
-      
-      if (!name || !email || !password) {
-        throw generateErrorInstance({
-          status: 400,
-          message: "Required fields can't be empty",
-        });
-      }
+      userService.ensureRequiredSignupFields({ name, email, password });
       
       const existingUser = await Users.findOne({
         where: { email },
