@@ -1,6 +1,7 @@
 const { generateErrorInstance } = require("../utils");
 const { Courses, Modules, Users, Enrolements, Assignments, Grades } = require("../models");
 const { Op } = require("sequelize");
+const courseService = require("../services/courseService");
 
 module.exports = {
   // ==================== PUBLIC ROUTES ====================
@@ -18,21 +19,8 @@ module.exports = {
         search 
       } = req.query;
 
-      const offset = (page - 1) * limit;
-      const whereClause = { 
-        status: 'PUBLISHED',
-        isActive: true 
-      };
-
-      // Add filters
-      if (category) whereClause.category = category;
-      if (level) whereClause.level = level;
-      if (search) {
-        whereClause[Op.or] = [
-          { title: { [Op.iLike]: `%${search}%` } },
-          { description: { [Op.iLike]: `%${search}%` } }
-        ];
-      }
+      const pagination = courseService.buildPagination({ page, limit });
+      const whereClause = courseService.buildPublicCourseWhereClause({ category, level, search });
 
       const courses = await Courses.findAndCountAll({
         where: whereClause,
@@ -44,20 +32,19 @@ module.exports = {
           }
         ],
         attributes: ['id', 'title', 'description', 'course_intro', 'thumbnail', 'price', 'level', 'category', 'rating', 'enrollmentCount', 'createdAt'],
-        limit: parseInt(limit),
-        offset: parseInt(offset),
+        limit: pagination.limit,
+        offset: pagination.offset,
         order: [[sortBy, sortOrder.toUpperCase()]]
       });
 
       res.status(200).json({
         success: true,
         data: courses.rows,
-        pagination: {
-          currentPage: parseInt(page),
-          totalPages: Math.ceil(courses.count / limit),
-          totalItems: courses.count,
-          itemsPerPage: parseInt(limit)
-        }
+        pagination: courseService.buildPagination({
+          page,
+          limit,
+          totalItems: courses.count
+        })
       });
     } catch (error) {
       next(error);
@@ -109,35 +96,8 @@ module.exports = {
   searchCourses: async (req, res, next) => {
     try {
       const { q, category, level, minPrice, maxPrice, sortBy = 'relevance' } = req.query;
-      
-      const whereClause = { 
-        status: 'PUBLISHED',
-        isActive: true 
-      };
-
-      if (category) whereClause.category = category;
-      if (level) whereClause.level = level;
-      if (minPrice !== undefined) whereClause.price = { [Op.gte]: minPrice };
-      if (maxPrice !== undefined) whereClause.price = { [Op.lte]: maxPrice };
-      if (q) {
-        whereClause[Op.or] = [
-          { title: { [Op.iLike]: `%${q}%` } },
-          { description: { [Op.iLike]: `%${q}%` } },
-          { tags: { [Op.contains]: [q] } }
-        ];
-      }
-
-      let orderClause = [];
-      if (sortBy === 'relevance' && q) {
-        // Custom relevance scoring based on search term
-        orderClause = [
-          [Op.literal(`CASE WHEN title ILIKE '%${q}%' THEN 1 ELSE 2 END`)],
-          ['rating', 'DESC'],
-          ['enrollmentCount', 'DESC']
-        ];
-      } else {
-        orderClause = [[sortBy, 'DESC']];
-      }
+      const whereClause = courseService.buildCourseSearchWhereClause({ q, category, level, minPrice, maxPrice });
+      const orderClause = courseService.buildSearchOrderClause({ sortBy, q });
 
       const courses = await Courses.findAll({
         where: whereClause,
@@ -221,9 +181,8 @@ module.exports = {
     try {
       const instructorId = req.user.id;
       const { status, page = 1, limit = 10 } = req.query;
-
-      const whereClause = { fk_instructor_id: instructorId };
-      if (status) whereClause.status = status;
+      const pagination = courseService.buildPagination({ page, limit });
+      const whereClause = courseService.buildInstructorCourseWhereClause({ instructorId, status });
 
       const courses = await Courses.findAndCountAll({
         where: whereClause,
@@ -234,19 +193,19 @@ module.exports = {
             attributes: ['id', 'status', 'enrolledAt']
           }
         ],
-        limit: parseInt(limit),
-        offset: (page - 1) * limit,
+        limit: pagination.limit,
+        offset: pagination.offset,
         order: [['createdAt', 'DESC']]
       });
 
       res.status(200).json({
         success: true,
         data: courses.rows,
-        pagination: {
-          currentPage: parseInt(page),
-          totalPages: Math.ceil(courses.count / limit),
+        pagination: courseService.buildPagination({
+          page,
+          limit,
           totalItems: courses.count
-        }
+        })
       });
     } catch (error) {
       next(error);
