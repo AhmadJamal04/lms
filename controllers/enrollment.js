@@ -1,6 +1,7 @@
 const { generateErrorInstance } = require("../utils");
 const { Enrolements, Courses, Users, Modules, Assignments, Grades } = require("../models");
 const { Op } = require("sequelize");
+const enrollmentService = require("../services/enrollmentService");
 
 module.exports = {
   // ==================== STUDENT ROUTES ====================
@@ -11,10 +12,8 @@ module.exports = {
       const userId = req.user.id;
       const { status = 'ACTIVE', page = 1, limit = 10 } = req.query;
 
-      const whereClause = { userId };
-      if (status !== 'ALL') {
-        whereClause.status = status;
-      }
+      const whereClause = enrollmentService.buildStatusWhereClause({ userId, status });
+      const pagination = enrollmentService.buildPaginationMeta({ page, limit });
 
       const enrollments = await Enrolements.findAndCountAll({
         where: whereClause,
@@ -31,19 +30,19 @@ module.exports = {
             ]
           }
         ],
-        limit: parseInt(limit),
-        offset: (page - 1) * limit,
+        limit: pagination.limit,
+        offset: pagination.offset,
         order: [['enrolledAt', 'DESC']]
       });
 
       res.status(200).json({
         success: true,
         data: enrollments.rows,
-        pagination: {
-          currentPage: parseInt(page),
-          totalPages: Math.ceil(enrollments.count / limit),
+        pagination: enrollmentService.buildPaginationMeta({
+          page,
+          limit,
           totalItems: enrollments.count
-        }
+        })
       });
     } catch (error) {
       next(error);
@@ -56,10 +55,7 @@ module.exports = {
       const userId = req.user.id;
       const { status = 'ACTIVE' } = req.query;
 
-      const whereClause = { userId };
-      if (status !== 'ALL') {
-        whereClause.status = status;
-      }
+      const whereClause = enrollmentService.buildStatusWhereClause({ userId, status });
 
       const enrollments = await Enrolements.findAll({
         where: whereClause,
@@ -269,14 +265,14 @@ module.exports = {
       // Calculate progress
       const totalModules = enrollment.course.modules.length;
       const completedModules = enrollment.completedModules || 0;
-      const progress = totalModules > 0 ? (completedModules / totalModules) * 100 : 0;
+      const progress = enrollmentService.calculateProgress({ completedModules, totalModules });
 
       res.status(200).json({
         success: true,
         data: {
           enrollmentId: id,
           courseId: enrollment.courseId,
-          progress: Math.round(progress),
+          progress,
           completedModules,
           totalModules,
           lastAccessed: enrollment.lastAccessed,
@@ -307,29 +303,19 @@ module.exports = {
         });
       }
 
-      const updateData = {};
+      let totalModules = 0;
       if (completedModules !== undefined) {
-        updateData.completedModules = completedModules;
-        
-        // Calculate progress percentage
         const course = await Courses.findByPk(enrollment.courseId, {
           include: [{ model: Modules, as: 'modules' }]
         });
-        
-        if (course && course.modules.length > 0) {
-          updateData.progress = (completedModules / course.modules.length) * 100;
-          
-          // Mark as completed if all modules are done
-          if (completedModules >= course.modules.length) {
-            updateData.status = 'COMPLETED';
-            updateData.completedAt = new Date();
-          }
-        }
+        totalModules = course?.modules?.length || 0;
       }
 
-      if (lastAccessed) {
-        updateData.lastAccessed = new Date(lastAccessed);
-      }
+      const updateData = enrollmentService.buildProgressUpdateData({
+        completedModules,
+        lastAccessed,
+        totalModules
+      });
 
       await enrollment.update(updateData);
 
@@ -485,6 +471,7 @@ module.exports = {
   getAllEnrollments: async (req, res, next) => {
     try {
       const { page = 1, limit = 10, status, courseId, userId } = req.query;
+      const pagination = enrollmentService.buildPaginationMeta({ page, limit });
 
       const whereClause = {};
       if (status) whereClause.status = status;
@@ -512,19 +499,19 @@ module.exports = {
             ]
           }
         ],
-        limit: parseInt(limit),
-        offset: (page - 1) * limit,
+        limit: pagination.limit,
+        offset: pagination.offset,
         order: [['enrolledAt', 'DESC']]
       });
 
       res.status(200).json({
         success: true,
         data: enrollments.rows,
-        pagination: {
-          currentPage: parseInt(page),
-          totalPages: Math.ceil(enrollments.count / limit),
+        pagination: enrollmentService.buildPaginationMeta({
+          page,
+          limit,
           totalItems: enrollments.count
-        }
+        })
       });
     } catch (error) {
       next(error);
